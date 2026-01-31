@@ -42,3 +42,18 @@ services:
       airflow scheduler
       "
 
+  streamlit:
+    image: python:3.8-slim
+    container_name: rfm_streamlit
+    depends_on:
+      - postgres
+    volumes:
+      - ./streamlit_app:/app
+    working_dir: /app
+    command: >
+      bash -c "
+      pip install streamlit pandas sqlalchemy psycopg2-binary &&
+      streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+      "
+    ports:
+      - "8501:8501"
