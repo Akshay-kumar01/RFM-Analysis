@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:14
+    container_name: rfm_postgres
+    environment:
+      POSTGRES_USER: rfm_user
+      POSTGRES_PASSWORD: rfm_pass
+      POSTGRES_DB: rfm_analytics
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./warehouse/init_databases.sql:/docker-entrypoint-initdb.d/init_databases.sql
+      - ./warehouse:/warehouse
+
+
+  airflow:
+    image: apache/airflow:2.7.2
+    container_name: rfm_airflow
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://rfm_user:rfm_pass@postgres:5432/airflow_meta
+      _PIP_ADDITIONAL_REQUIREMENTS: pandas numpy scikit-learn sqlalchemy psycopg2-binary
+
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./ingestion:/opt/airflow/ingestion
+      - ./ml:/opt/airflow/ml
+      - ./data_generator:/opt/airflow/data_generator
+      - ./transformations:/opt/airflow/transformations
+      - ./warehouse:/opt/airflow/warehouse
+
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@test.com || true &&
+      airflow webserver &
+      sleep 10 &&
+      airflow scheduler
+      "
+
